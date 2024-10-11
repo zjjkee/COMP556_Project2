@@ -70,12 +70,12 @@ Clean Build Files:
 make clean
 ```
 
-Check the process and Memory usage percentage on CLEAR:
+Check the process and Memory usage  on CLEAR:
 ```
 ps aux | grep recvfile
 ```
 
-Check the process and Memory usage percentage on emulator machine:
+Check the process and Memory usage  on emulator machine:
 ```
 ps aux | grep sendfile
 ```
