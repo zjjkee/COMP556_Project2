@@ -7,8 +7,8 @@
 #include <getopt.h>
 #include <sys/socket.h>
 
-#define PACKET_SIZE 1480
-#define WINDOW_SIZE 30
+#define PACKET_SIZE 1481
+#define WINDOW_SIZE 24
 
 // Structure representing a packet
 struct Packet {
