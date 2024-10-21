@@ -20,11 +20,11 @@ This project implements a sliding window transport protocol for reliable file tr
     How we determine PACKET_SIZE:
     - For Ethernet networks, the typical MTU is 1500 bytes, which is the standard for many networks.
     - Our packet defined consist of sequence_number(uint32_t), data_length(uint32_t), checksum(uint32_t), is_last_packet(int) and data(which is PACKET_SIZE)
-    - Thus we have our PACKET_SIZE: 1500 bytes (MTU)−16 bytes(IP header) − 8 bytes (UDP header) = 1476 bytes (max payload size)
+    - Thus we have our PACKET_SIZE: 1500 bytes (MTU)− 11 bytes(IP header) − 8 bytes (UDP header) = 1481 bytes (max payload size)
 
     How we determine WINDOW_SIZE:
-    - After we test the ping from the CLEAR server to look.cs.rice.edu, we have the RTT is XXX(need to be test on CLEAR)
-    - Based on this, we have BDP = RTT × Bandwidth; We set each packet size is 1024 bytes. Thus the WindowSize we set is XXX.
+    - After we test the ping from the CLEAR server to look.cs.rice.edu, we have the RTT is 0.287ms(need to be test on CLEAR). Thus we set timeout = 1000us;
+    - Based on this, we have BDP = RTT × Bandwidth; We set each packet size is 1481 bytes. Thus the WindowSize = (RTT × Bandwidth)/PACKET_SIZE  is 24.
 
 
 2. `recvfile.c`: A file receiver that receives the file, verifies the data integrity using CRC32, and saves the file in the local directory as `output`. In the recvfile, we implemented following mechanisms:
