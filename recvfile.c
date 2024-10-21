@@ -114,7 +114,7 @@ void receive_file(int sock) {
                 print_recv_message(packet.sequence_number * PACKET_SIZE, packet.data_length, "ACCEPTED(out-of-order)");
             } else if (packet.sequence_number == base) {
                 // Correct, in-order packet; slide the window and process packets in sequence
-                if (acked[base % WINDOW_SIZE]) {
+                while (acked[base % WINDOW_SIZE]) {
 
                     fwrite(buffer[base % WINDOW_SIZE], 1, packet.data_length, file);  // Write data to file
                     print_recv_message(base * PACKET_SIZE, packet.data_length, "ACCEPTED(in-order)");
