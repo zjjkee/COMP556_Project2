@@ -8,10 +8,11 @@
 #include <sys/time.h>
 #include <time.h>
 
-#define PACKET_SIZE 1480
+#define PACKET_SIZE 1481
 #define HEADER_SIZE 11  // 2 bytes for sequence number + 4 bytes for checksum + 4 bytes for data length + 1 bytes for  is_last_packet
-#define WINDOW_SIZE 30
-#define TIMEOUT 0.3  // Timeout of second
+#define WINDOW_SIZE 24
+#define TIMEOUT_S 0
+#define TIMEOUT_U 1000   // Timeout of second
 
 
 // Structure representing a packet
@@ -27,7 +28,7 @@ struct Packet {
 double get_current_time() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return tv.tv_sec + tv.tv_usec / 1000000.0;
+    return tv.tv_sec*1000000.0 + tv.tv_usec;
 }
 
 // Function to calculate CRC32 checksum
@@ -94,7 +95,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
 
     //simulationg for drop
     float drop_rate = 0.4;  //   Drop rate
-    srand(time(NULL));  // 初始化随机数生成器
+    srand(time(NULL));  // initial
 
     struct Packet packets[WINDOW_SIZE];
     uint32_t base = 0, next_seq_num = 0;
@@ -123,17 +124,17 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             packets[next_seq_num % WINDOW_SIZE].checksum = crc32(packets[next_seq_num % WINDOW_SIZE].data, read_bytes);
 
             // simulation for drop packets
-            float rand_val = (float)rand() / RAND_MAX;  // random number range [0,1]
-            if (rand_val < drop_rate) {
-                printf("[drop packet] %u\n", next_seq_num * PACKET_SIZE);  // log drop
-            } else {
-                // Send the packet to the receiver
-                sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
-                print_send_message(next_seq_num * PACKET_SIZE, read_bytes);
-            }
+            // float rand_val = (float)rand() / RAND_MAX;  // random number range [0,1]
+            // if (rand_val < drop_rate) {
+            //     printf("[drop packet] %u\n", next_seq_num * PACKET_SIZE);  // log drop
+            // } else {
+            //     // Send the packet to the receiver
+            //     sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+            //     print_send_message(next_seq_num * PACKET_SIZE, read_bytes);
+            // }
 
             // Send the packet to the receiver
-            // sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+            sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
             next_seq_num++;
             print_send_message(next_seq_num * PACKET_SIZE, read_bytes);
             send_times[next_seq_num % WINDOW_SIZE] = get_current_time(); // 记录发送时间 // record sending time
@@ -146,8 +147,8 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
         {
             // Wait for ACK
             struct timeval timeout;
-            timeout.tv_sec = TIMEOUT;
-            timeout.tv_usec = 0;
+            timeout.tv_sec = TIMEOUT_S;
+            timeout.tv_usec = TIMEOUT_U;
             FD_ZERO(&fds);
             FD_SET(sock, &fds);
             //using select wait ACK or timeout
@@ -171,7 +172,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                 // printf("activity <=0, base: %d, next_seq_num: %d\n",base,next_seq_num);
                 double current_time = get_current_time();
                 for (uint32_t i = base; i < next_seq_num; i++) {
-                        if (current_time - send_times[i % WINDOW_SIZE] >= TIMEOUT) {
+                        if (current_time - send_times[i % WINDOW_SIZE] >= TIMEOUT_U) {
                         printf("Retransmitting on timeout\n");
                         sendto(sock, &packets[i % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
                         print_send_message(i * PACKET_SIZE, packets[i % WINDOW_SIZE].data_length);
