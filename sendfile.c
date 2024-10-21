@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -8,17 +9,17 @@
 #include <time.h>
 
 #define PACKET_SIZE 1476
-#define HEADER_SIZE 16  // 4 bytes for sequence number + 4 bytes for checksum + 4 bytes for data length + 4 bytes for  is_last_packet
-#define WINDOW_SIZE 100
-#define TIMEOUT 1  // Timeout of 1 second
+#define HEADER_SIZE 11  // 2 bytes for sequence number + 4 bytes for checksum + 4 bytes for data length + 1 bytes for  is_last_packet
+#define WINDOW_SIZE 30
+#define TIMEOUT 0.4  // Timeout of second
 
 // Structure representing a packet
 struct Packet {
-    uint32_t sequence_number;
+    uint16_t sequence_number;
     uint32_t data_length;
     char data[PACKET_SIZE]; // payload, size defined by PACKET_SIZE
     uint32_t checksum;
-    int is_last_packet;  // Flag indicating if this is the last packet
+    bool is_last_packet;  // Flag indicating if this is the last packet
 };
 
 //record current time
@@ -91,7 +92,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
     }
 
     //simulationg for drop
-    float drop_rate = 0.8;  //  丢包率 Drop rate
+    float drop_rate = 0.2;  //  丢包率 Drop rate
     srand(time(NULL));  // 初始化随机数生成器
 
     struct Packet packets[WINDOW_SIZE];
@@ -111,9 +112,9 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             // Check if we have reached the end of the file
             if (read_bytes < PACKET_SIZE) {
                 // If fewer than PACKET_SIZE bytes are read, this is the last packet
-                packets[next_seq_num % WINDOW_SIZE].is_last_packet = 1;  // 1 indicates the last packet
+                packets[next_seq_num % WINDOW_SIZE].is_last_packet = true;  // 1 indicates the last packet
             } else {
-                packets[next_seq_num % WINDOW_SIZE].is_last_packet = 0;  // 0 indicates a regular packet
+                packets[next_seq_num % WINDOW_SIZE].is_last_packet = false;  // 0 indicates a regular packet
             }
 
             packets[next_seq_num % WINDOW_SIZE].sequence_number = next_seq_num;
@@ -121,14 +122,14 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             packets[next_seq_num % WINDOW_SIZE].checksum = crc32(packets[next_seq_num % WINDOW_SIZE].data, read_bytes);
 
             // simulation for drop packets
-            float rand_val = (float)rand() / RAND_MAX;  // random number range [0,1]
-            if (rand_val < drop_rate) {
-                printf("[drop packet] %u\n", next_seq_num * PACKET_SIZE);  // log drop
-            } else {
-                // Send the packet to the receiver
-                sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
-                print_send_message(next_seq_num * PACKET_SIZE, read_bytes);
-            }
+            // float rand_val = (float)rand() / RAND_MAX;  // random number range [0,1]
+            // if (rand_val < drop_rate) {
+            //     printf("[drop packet] %u\n", next_seq_num * PACKET_SIZE);  // log drop
+            // } else {
+            //     // Send the packet to the receiver
+            //     sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+            //     print_send_message(next_seq_num * PACKET_SIZE, read_bytes);
+            // }
 
             // Send the packet to the receiver
             sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
@@ -149,7 +150,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             FD_SET(sock, &fds);
             //using select wait ACK or timeout
             int activity = select(sock + 1, &fds, NULL, NULL, &timeout);
-        // printf(" activity: %d \n", activity);
+            // printf(" activity: %d \n", activity);
             if (activity > 0) {
                 uint32_t ack;
                 int bytes_rcvd = recvfrom(sock, &ack, sizeof(ack), 0, (struct sockaddr *)receiver_addr, &addr_len);
@@ -161,12 +162,17 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                     // printf(" ACK RECEIVED!!!!!\n");
                 }
                 // when packets are all acked, break
-                if (base == next_seq_num) {
+                if (feof(file) && base >= next_seq_num) {
                     break;
                 }
+
             }
             else {
                 // Retransmit on timeout
+                printf("activity <=0, base: %d, next_seq_num: %d\n",base,next_seq_num);
+                if (feof(file) && base >= next_seq_num) {
+                    break;
+                }
                 double current_time = get_current_time();
                 for (uint32_t i = base; i < next_seq_num; i++) {
                         if (current_time - send_times[i % WINDOW_SIZE] >= TIMEOUT) {
@@ -178,11 +184,11 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                 break;  // continue wait ACK after retransmitting
             }
         }
-        
 
 
         // Exit after sending the file completely
-        if (feof(file) && base >= next_seq_num) {
+        printf("FINAL, base: %d, next_seq_num: %d\n",base,next_seq_num);
+        if (feof(file) ) {
             printf("Exit after completing transmission\n");
             break;
         }
