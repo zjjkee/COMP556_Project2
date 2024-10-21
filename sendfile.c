@@ -14,6 +14,7 @@
 #define TIMEOUT_S 0
 #define TIMEOUT_U 1000   // Timeout of second
 
+long file_size;
 
 // Structure representing a packet
 struct Packet {
@@ -30,6 +31,8 @@ double get_current_time() {
     gettimeofday(&tv, NULL);
     return tv.tv_sec*1000000.0 + tv.tv_usec;
 }
+
+
 
 // Function to calculate CRC32 checksum
 uint32_t crc32(const char *data, size_t length) {
@@ -92,6 +95,9 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
         perror("File open failed");
         return;
     }
+    fseek(file, 0L, SEEK_END);//moving file pointer to end;
+    file_size = ftell(file); // get file size
+    fseek(file, 0L, SEEK_SET);
 
     //simulationg for drop
     float drop_rate = 0.4;  //   Drop rate
@@ -157,7 +163,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             if (activity > 0) {
                 uint32_t ack;
                 int bytes_rcvd = recvfrom(sock, &ack, sizeof(ack), 0, (struct sockaddr *)receiver_addr, &addr_len);
-                printf("ack:%d, base:%d;\t",ack,base );
+                // printf("ack:%d, base:%d;\t",ack,base );
                 while (bytes_rcvd > 0 && ack >= base) {
                     // Slide the window
                     base = ack + 1;
@@ -219,12 +225,25 @@ int main(int argc, char *argv[]) {
     int sock = create_socket(&receiver_addr, host, port);
     if (sock < 0) return 1;
 
+    //start time
+    double start_time = get_current_time() / 1000000.0;
+
     // Construct the file path to be sent
     char file_path[150];
     snprintf(file_path, sizeof(file_path), "%s/%s", dir, file);
 
     // Start sending the file
     send_file(sock, &receiver_addr, file_path);
+
+    //end time
+    double end_time = get_current_time() / 1000000.0;
+    double transmission_time = end_time - start_time;
+    //transimtion rate
+    double transmission_rate = file_size / transmission_time;
+
+    printf("File size: %ld bytes\n", file_size);
+    printf("Transmission time: %.3f seconds\n", transmission_time);
+    printf("Transmission rate: %.3f bytes/second (%.3f Mbps)\n", transmission_rate, transmission_rate * 8 / (1024 * 1024));
 
     // Close the socket after transmission is complete
     close(sock);
