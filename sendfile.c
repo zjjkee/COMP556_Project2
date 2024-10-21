@@ -130,17 +130,17 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             packets[next_seq_num % WINDOW_SIZE].checksum = crc32(packets[next_seq_num % WINDOW_SIZE].data, read_bytes);
 
             // simulation for drop packets
-            // float rand_val = (float)rand() / RAND_MAX;  // random number range [0,1]
-            // if (rand_val < drop_rate) {
-            //     printf("[drop packet] %u\n", next_seq_num * PACKET_SIZE);  // log drop
-            // } else {
-            //     // Send the packet to the receiver
-            //     sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
-            //     print_send_message(next_seq_num * PACKET_SIZE, read_bytes);
-            // }
+            float rand_val = (float)rand() / RAND_MAX;  // random number range [0,1]
+            if (rand_val < drop_rate) {
+                printf("[drop packet] %u\n", next_seq_num * PACKET_SIZE);  // log drop
+            } else {
+                // Send the packet to the receiver
+                sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+                print_send_message(next_seq_num * PACKET_SIZE, read_bytes);
+            }
 
             // Send the packet to the receiver
-            sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+            // sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
             next_seq_num++;
             print_send_message(next_seq_num * PACKET_SIZE, read_bytes);
             send_times[next_seq_num % WINDOW_SIZE] = get_current_time(); // 记录发送时间 // record sending time
@@ -194,15 +194,12 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
         // Exit after sending the file completely
         // printf("FINAL, base: %d, next_seq_num: %d\n",base,next_seq_num);
         if (feof(file) && base >= next_seq_num) {
-            // struct Packet end_packet;
-            // end_packet.sequence_number = next_seq_num;
-            // end_packet.data_length = 0;
-            // end_packet.is_last_packet = true;
+            struct Packet end_packet;
+            end_packet.sequence_number = next_seq_num;
+            end_packet.data_length = 0;
+            end_packet.is_last_packet = true;
 
-            // for (int i = 0; i < 3; i++) {  // 连续发送 3 次结束包确保 recvfile 接收
-            //     sendto(sock, &end_packet, sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
-            //     usleep(500000);  // 等待 500 毫秒
-            // }
+            sendto(sock, &end_packet, sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
 
             printf("Exit after completing transmission\n");
             break;
