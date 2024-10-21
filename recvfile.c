@@ -129,11 +129,11 @@ void receive_file(int sock) {
 
         // Send ACK for the next expected packet (base)
         next_ack = base - 1;
-        printf("sent ACK: %d\n", next_ack);
+        // printf("sent ACK: %d\n", next_ack);
         sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
 
         // Exit if this is the last packet in the file
-        if (packet.is_last_packet && packet.sequence_number == next_ack) {  // Use is_last_packet flag to detect the end of file transmission
+        if ((packet.is_last_packet && packet.sequence_number == next_ack)|| (packet.data_length == 0 && packet.is_last_packet) ) {  // Use is_last_packet flag to detect the end of file transmission
 
             printf("[completed]\n");
             break;
