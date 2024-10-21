@@ -7,7 +7,7 @@
 #include <getopt.h>
 #include <sys/socket.h>
 
-#define PACKET_SIZE 1476
+#define PACKET_SIZE 1480
 #define WINDOW_SIZE 30
 
 // Structure representing a packet
@@ -88,9 +88,12 @@ void receive_file(int sock) {
         return;
     }
 
+
     while (1) {
         ssize_t bytes_received = recvfrom(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&sender_addr, &addr_len);
         if (bytes_received <= 0) break;
+
+
 
         // Validate the checksum
         uint32_t calculated_checksum = crc32(packet.data, packet.data_length);
@@ -130,7 +133,8 @@ void receive_file(int sock) {
         sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
 
         // Exit if this is the last packet in the file
-        if (packet.is_last_packet) {  // Use is_last_packet flag to detect the end of file transmission
+        if (packet.is_last_packet && packet.sequence_number == next_ack) {  // Use is_last_packet flag to detect the end of file transmission
+
             printf("[completed]\n");
             break;
         }
