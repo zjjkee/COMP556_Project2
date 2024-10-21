@@ -11,7 +11,8 @@
 #define PACKET_SIZE 1480
 #define HEADER_SIZE 11  // 2 bytes for sequence number + 4 bytes for checksum + 4 bytes for data length + 1 bytes for  is_last_packet
 #define WINDOW_SIZE 30
-#define TIMEOUT 0.8  // Timeout of second
+#define TIMEOUT 0.3  // Timeout of second
+
 
 // Structure representing a packet
 struct Packet {
@@ -92,7 +93,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
     }
 
     //simulationg for drop
-    float drop_rate = 0.8;  //  丢包率 Drop rate
+    float drop_rate = 0.4;  //   Drop rate
     srand(time(NULL));  // 初始化随机数生成器
 
     struct Packet packets[WINDOW_SIZE];
@@ -155,31 +156,27 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             if (activity > 0) {
                 uint32_t ack;
                 int bytes_rcvd = recvfrom(sock, &ack, sizeof(ack), 0, (struct sockaddr *)receiver_addr, &addr_len);
-                // printf("ack:%d, base:%d",ack,base );
-                if (bytes_rcvd > 0 && ack == base) {
+                printf("ack:%d, base:%d;\t",ack,base );
+                while (bytes_rcvd > 0 && ack >= base) {
                     // Slide the window
                     base = ack + 1;
                     // printf(" ACK RECEIVED!!!!!\n");
                 }
 
-                // when packets are all acked, break
-                // if (feof(file) && base >= next_seq_num) {
-                //     break;
-                // }
 
             }
             else {
                 // Retransmit on timeout
+
                 // printf("activity <=0, base: %d, next_seq_num: %d\n",base,next_seq_num);
-                // if (feof(file) && base >= next_seq_num) {
-                //     break;
-                // }
                 double current_time = get_current_time();
                 for (uint32_t i = base; i < next_seq_num; i++) {
                         if (current_time - send_times[i % WINDOW_SIZE] >= TIMEOUT) {
                         printf("Retransmitting on timeout\n");
                         sendto(sock, &packets[i % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
-                        print_send_message(i * PACKET_SIZE, PACKET_SIZE);
+                        print_send_message(i * PACKET_SIZE, packets[i % WINDOW_SIZE].data_length);
+                        // update retransmit time
+                        send_times[i % WINDOW_SIZE] = current_time;
                         }
                 }
                 break;  // continue wait ACK after retransmitting
@@ -190,15 +187,15 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
         // Exit after sending the file completely
         // printf("FINAL, base: %d, next_seq_num: %d\n",base,next_seq_num);
         if (feof(file) && base >= next_seq_num) {
-            struct Packet end_packet;
-            end_packet.sequence_number = next_seq_num;
-            end_packet.data_length = 0;
-            end_packet.is_last_packet = true;
+            // struct Packet end_packet;
+            // end_packet.sequence_number = next_seq_num;
+            // end_packet.data_length = 0;
+            // end_packet.is_last_packet = true;
 
-            for (int i = 0; i < 3; i++) {  // 连续发送 3 次结束包确保 recvfile 接收
-                sendto(sock, &end_packet, sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
-                usleep(500000);  // 等待 500 毫秒
-            }
+            // for (int i = 0; i < 3; i++) {  // 连续发送 3 次结束包确保 recvfile 接收
+            //     sendto(sock, &end_packet, sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+            //     usleep(500000);  // 等待 500 毫秒
+            // }
 
             printf("Exit after completing transmission\n");
             break;
