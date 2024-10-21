@@ -110,17 +110,7 @@ void receive_file(int sock) {
                 print_recv_message(packet.sequence_number * PACKET_SIZE, packet.data_length, "ACCEPTED(out-of-order)");
             } else if (packet.sequence_number == base) {
                 // Correct, in-order packet; slide the window and process packets in sequence
-                while (acked[base % WINDOW_SIZE]) {
-                    // if (!file) {
-                    //     // Generate the output file path
-                    //     char output_file[150];
-                    //     snprintf(output_file, sizeof(output_file), "recv_file_%u.recv", base);
-                    //     file = fopen(output_file, "wb");
-                    //     if (!file) {
-                    //         perror("File open failed");
-                    //         return;
-                    //     }
-                    // }
+                if (acked[base % WINDOW_SIZE]) {
 
                     fwrite(buffer[base % WINDOW_SIZE], 1, packet.data_length, file);  // Write data to file
                     print_recv_message(base * PACKET_SIZE, packet.data_length, "ACCEPTED(in-order)");
@@ -134,7 +124,8 @@ void receive_file(int sock) {
         }
 
         // Send ACK for the next expected packet (base)
-        next_ack = base;
+        next_ack = base - 1;
+        printf("sent ACK: %d\n", next_ack);
         sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
 
         // Exit if this is the last packet in the file
