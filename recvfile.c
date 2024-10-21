@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
@@ -7,15 +8,15 @@
 #include <sys/socket.h>
 
 #define PACKET_SIZE 1476
-#define WINDOW_SIZE 100
+#define WINDOW_SIZE 30
 
 // Structure representing a packet
 struct Packet {
-    uint32_t sequence_number;
+    uint16_t sequence_number;
     uint32_t data_length;
     char data[PACKET_SIZE];
     uint32_t checksum;
-    int is_last_packet;  // Flag to indicate if this is the last packet
+    bool is_last_packet;  // Flag to indicate if this is the last packet
 };
 
 // Function to calculate CRC32 checksum
