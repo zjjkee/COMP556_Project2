@@ -36,6 +36,7 @@ void print_recv_message(uint32_t start, int length, const char *status) {
     printf("[recv data] %u (%d) %s\n", start, length, status);
 }
 
+
 // Function to parse command line arguments
 void parse_arguments(int argc, char *argv[], int *port) {
     int opt;
@@ -87,13 +88,11 @@ void receive_file(int sock) {
         perror("File open failed"); //open output failed
         return;
     }
-
+    int tmp = 0;
 
     while (1) {
         ssize_t bytes_received = recvfrom(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&sender_addr, &addr_len);
         if (bytes_received <= 0) break;
-
-
 
         // Validate the checksum
         uint32_t calculated_checksum = crc32(packet.data, packet.data_length);
@@ -134,9 +133,13 @@ void receive_file(int sock) {
         else{
             next_ack = base - 1;
         }
+        tmp = next_ack;
         
         // printf("sent ACK: %d\n", next_ack);
         sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
+        if (packet.sequence_number <= next_ack){
+            sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
+        }
 
         // Exit if this is the last packet in the file
         if ((packet.is_last_packet && packet.sequence_number == next_ack)|| (packet.data_length == 0 && packet.is_last_packet) ) {  // Use is_last_packet flag to detect the end of file transmission
