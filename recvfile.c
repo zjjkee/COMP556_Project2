@@ -128,7 +128,7 @@ void receive_file(int sock) {
 
         // Send ACK for the next expected packet (base)
         if (base == 0){
-            next_ack = 0
+            next_ack = 0;
         }
         else{
             next_ack = base - 1;
