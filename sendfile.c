@@ -12,7 +12,7 @@
 #define HEADER_SIZE 11  // 2 bytes for sequence number + 4 bytes for checksum + 4 bytes for data length + 1 bytes for  is_last_packet
 #define WINDOW_SIZE 24
 #define TIMEOUT_S 0
-#define TIMEOUT_U 1000   // Timeout of second
+#define TIMEOUT_U 3000   // Timeout of second
 
 long file_size;
 
@@ -164,7 +164,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                 uint32_t ack;
                 int bytes_rcvd = recvfrom(sock, &ack, sizeof(ack), 0, (struct sockaddr *)receiver_addr, &addr_len);
                 // printf("ack:%d, base:%d;\t",ack,base );
-                while (bytes_rcvd > 0 && ack >= base) {
+                if (bytes_rcvd > 0 && ack >= base) {
                     // Slide the window
                     base = ack + 1;
                     // printf(" ACK RECEIVED!!!!!\n");
@@ -186,6 +186,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                         send_times[i % WINDOW_SIZE] = current_time;
                         }
                 }
+                //usleept(50000);
                 break;  // continue wait ACK after retransmitting
             }
         }
