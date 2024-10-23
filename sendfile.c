@@ -168,6 +168,10 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                     // Slide the window
                     base = ack + 1;
                     // printf(" ACK RECEIVED!!!!!\n");
+                    if (base == next_seq_num) {
+                    // All packets in the current window are acknowledged
+                    break;
+                    }
                 }
 
 
