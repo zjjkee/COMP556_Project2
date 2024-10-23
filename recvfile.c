@@ -88,7 +88,6 @@ void receive_file(int sock) {
         perror("File open failed"); //open output failed
         return;
     }
-    int tmp = 0;
 
     while (1) {
         ssize_t bytes_received = recvfrom(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&sender_addr, &addr_len);
@@ -133,9 +132,8 @@ void receive_file(int sock) {
         else{
             next_ack = base - 1;
         }
-        tmp = next_ack;
         
-        // printf("sent ACK: %d\n", next_ack);
+        // printf("base:%d, sent ACK:%d,  \n",base, next_ack);
         sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
         if (packet.sequence_number <= next_ack){
             sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
