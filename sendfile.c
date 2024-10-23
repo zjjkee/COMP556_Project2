@@ -186,7 +186,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                         send_times[i % WINDOW_SIZE] = current_time;
                         }
                 }
-                //usleept(50000);
+                // usleep(50000); // waiting recvfile to receieve and sent back ack;
                 break;  // continue wait ACK after retransmitting
             }
         }
