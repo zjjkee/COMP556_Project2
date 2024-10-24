@@ -140,7 +140,17 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             // }
 
             // Send the packet to the receiver
-            sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+            int sentSizeCount = 0;
+            int tempSent = 0;
+
+            while (sentSizeCount != sizeof(struct Packet)) {
+                tempSent = sendto(sock, &packets[next_seq_num % WINDOW_SIZE] + sentSizeCount, sizeof(struct Packet) - sentSizeCount, 0, (struct sockaddr*)receiver_addr, addr_len);
+                if (tempSent <= 0) {
+                    continue;
+                }
+                sentSizeCount += tempSent;
+            }
+            // sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
             next_seq_num++;
             print_send_message(next_seq_num * PACKET_SIZE, read_bytes);
             send_times[next_seq_num % WINDOW_SIZE] = get_current_time(); // 记录发送时间 // record sending time
@@ -162,7 +172,17 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             // printf(" activity: %d \n", activity);
             if (activity > 0) {
                 uint32_t ack;
-                int bytes_rcvd = recvfrom(sock, &ack, sizeof(ack), 0, (struct sockaddr *)receiver_addr, &addr_len);
+                int bytes_rcvd = 0;
+                int tempRec = 0;
+
+                while (bytes_rcvd != sizeof(ack)) {
+                    tempRec = recvfrom(sock, &ack + bytes_rcvd, sizeof(ack) - bytes_rcvd, 0, (struct sockaddr*)receiver_addr, &addr_len);
+                    if (tempRec <= 0) {
+                        continue;
+                    }
+                    bytes_rcvd += tempRec;
+                }
+                // int bytes_rcvd = recvfrom(sock, &ack, sizeof(ack), 0, (struct sockaddr *)receiver_addr, &addr_len);
                 // printf("ack:%d, base:%d;\t",ack,base );
                 if (bytes_rcvd > 0 && ack >= base) {
                     // Slide the window
@@ -184,7 +204,17 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                 for (uint32_t i = base; i < next_seq_num; i++) {
                         if (current_time - send_times[i % WINDOW_SIZE] >= TIMEOUT_U) {
                         printf("Retransmitting on timeout\n");
-                        sendto(sock, &packets[i % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+                        int sentSizeCount = 0;
+                        int tempSent = 0;
+
+                        while (sentSizeCount != sizeof(struct Packet)) {
+                            tempSent = sendto(sock, &packets[i % WINDOW_SIZE] + sentSizeCount, sizeof(struct Packet) - sentSizeCount, 0, (struct sockaddr*)receiver_addr, addr_len);
+                            if (tempSent <= 0) {
+                                continue;
+                            }
+                            sentSizeCount += tempSent;
+                        }
+                        //sendto(sock, &packets[i % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
                         print_send_message(i * PACKET_SIZE, packets[i % WINDOW_SIZE].data_length);
                         // update retransmit time
                         send_times[i % WINDOW_SIZE] = current_time;
@@ -208,7 +238,17 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             strncopy(end_packet.data, file_path, strlen(file_name)-1);
             end_packet.data[strlen(file_name)] = '\0';
 
-            sendto(sock, &end_packet, sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+            int sentSizeCount = 0;
+            int tempSent = 0;
+
+            while (sentSizeCount != sizeof(struct Packet)) {
+                tempSent = sendto(sock, &end_packet + sentSizeCount, sizeof(struct Packet) - sentSizeCount, 0, (struct sockaddr*)receiver_addr, addr_len);
+                if (tempSent <= 0) {
+                    continue;
+                }
+                sentSizeCount += tempSent;
+            }
+            //sendto(sock, &end_packet, sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
 
             printf("Exit after completing transmission\n");
             break;

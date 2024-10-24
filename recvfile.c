@@ -92,7 +92,17 @@ void receive_file(int sock) {
     }
 
     while (1) {
-        ssize_t bytes_received = recvfrom(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&sender_addr, &addr_len);
+        int bytes_received = 0;
+        int tempRec = 0;
+
+        while (bytes_received != sizeof(packet)) {
+            tempRec = recvfrom(sock, &packet + bytes_received, sizeof(packet) - bytes_received, 0, (struct sockaddr*)sender_addr, &addr_len);
+            if (tempRec <= 0) {
+                continue;
+            }
+            bytes_received += tempRec;
+        }
+        // ssize_t bytes_received = recvfrom(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&sender_addr, &addr_len);
         if (bytes_received <= 0) break;
 
         // Validate the checksum
@@ -136,10 +146,22 @@ void receive_file(int sock) {
         }
         
         // printf("base:%d, sent ACK:%d,  \n",base, next_ack);
-        sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
-        if (packet.sequence_number <= next_ack){
-            sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
+        int sentSizeCount = 0;
+        int tempSent = 0;
+
+        while (sentSizeCount != sizeof(next_ack)) {
+            tempSent = sendto(sock, &next_ack + sentSizeCount, sizeof(next_ack) - sentSizeCount, 0, (struct sockaddr*)sender_addr, addr_len);
+            if (tempSent <= 0) {
+                continue;
+            }
+            sentSizeCount += tempSent;
         }
+
+        //sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
+        // Sending ack again?
+        // if (packet.sequence_number <= next_ack){
+        //    sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
+        //}
 
         // Exit if this is the last packet in the file
         if (packet.is_last_packet && packet.sequence_number == next_ack) { // || (packet.data_length == 0 && packet.is_last_packet) ) {  // Use is_last_packet flag to detect the end of file transmission
