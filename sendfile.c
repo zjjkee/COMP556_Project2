@@ -8,7 +8,9 @@
 #include <sys/time.h>
 #include <time.h>
 
-#define PACKET_SIZE 1481
+#define PACKET_SIZE 1281
+#define FILENAME_SIZE 100
+#define DIRECTORY_SIZE 100
 #define HEADER_SIZE 11  // 2 bytes for sequence number + 4 bytes for checksum + 4 bytes for data length + 1 bytes for  is_last_packet
 #define WINDOW_SIZE 24
 #define TIMEOUT_S 0
@@ -23,6 +25,9 @@ struct Packet {
     char data[PACKET_SIZE]; // payload, size defined by PACKET_SIZE
     uint32_t checksum;
     bool is_last_packet;  // Flag indicating if this is the last packet
+    char filename[FILENAME_SIZE];  // Filename being sent
+    char directory[DIRECTORY_SIZE]; // Directory path being sent
+
 };
 
 //record current time
@@ -89,7 +94,7 @@ int create_socket(struct sockaddr_in *address, const char *ip, int port) {
 }
 
 // Function to send a file using the sliding window protocol
-void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_path) {
+void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_path, const char *dir, const char *file) {
     FILE *file = fopen(file_path, "rb");
     if (!file) {
         perror("File open failed");
@@ -128,6 +133,11 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             packets[next_seq_num % WINDOW_SIZE].sequence_number = next_seq_num;
             packets[next_seq_num % WINDOW_SIZE].data_length = read_bytes;
             packets[next_seq_num % WINDOW_SIZE].checksum = crc32(packets[next_seq_num % WINDOW_SIZE].data, read_bytes);
+
+             // Add directory and filename to each packet
+            strncpy(packets[next_seq_num % WINDOW_SIZE].directory, dir, DIRECTORY_SIZE);
+            strncpy(packets[next_seq_num % WINDOW_SIZE].filename, filename, FILENAME_SIZE);
+
 
             // simulation for drop packets
             // float rand_val = (float)rand() / RAND_MAX;  // random number range [0,1]
@@ -203,7 +213,10 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             end_packet.sequence_number = next_seq_num;
             end_packet.data_length = 0;
             end_packet.is_last_packet = true;
-
+            // Send end packet with directory and filename
+            strncpy(end_packet.directory, dir, DIRECTORY_SIZE);
+            strncpy(end_packet.filename, filename, FILENAME_SIZE);
+            
             sendto(sock, &end_packet, sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
 
             printf("Exit after completing transmission\n");
@@ -235,7 +248,7 @@ int main(int argc, char *argv[]) {
     snprintf(file_path, sizeof(file_path), "%s/%s", dir, file);
 
     // Start sending the file
-    send_file(sock, &receiver_addr, file_path);
+    send_file(sock, &receiver_addr, file_path, dir, file);
 
     //end time
     double end_time = get_current_time() / 1000000.0;
