@@ -100,7 +100,8 @@ void receive_file(int sock) {
 
         // Validate the checksum
         uint32_t calculated_checksum = crc32(packet.data, packet.data_length);
-        if (calculated_checksum != packet.checksum) {
+        if (calculated_checksum != ntohl(packet.checksum)) {
+            
             printf("[recv corrupt packet]\n");
             continue;
         }

@@ -171,8 +171,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
 
             packets[next_seq_num % WINDOW_SIZE].sequence_number = next_seq_num;
             packets[next_seq_num % WINDOW_SIZE].data_length = read_bytes;
-            packets[next_seq_num % WINDOW_SIZE].checksum = crc32(packets[next_seq_num % WINDOW_SIZE].data, read_bytes);
-
+            packets[next_seq_num % WINDOW_SIZE].checksum = htonl(crc32(packets[next_seq_num % WINDOW_SIZE].data, read_bytes));
              // Add directory and filename to each packet
             strncpy(packets[next_seq_num % WINDOW_SIZE].directory, dir, DIRECTORY_SIZE);
             strncpy(packets[next_seq_num % WINDOW_SIZE].filename, filename, FILENAME_SIZE);
