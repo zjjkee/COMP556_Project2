@@ -58,6 +58,30 @@ void print_send_message(uint32_t start, int length) {
 }
 
 // Function to parse command line arguments
+// void parse_arguments(int argc, char *argv[], char **host, int *port, char **dir, char **file) {
+//     int opt;
+//     while ((opt = getopt(argc, argv, "r:f:")) != -1) {
+//         switch (opt) {
+//             case 'r':
+//                 *host = strtok(optarg, ":");
+//                 *port = atoi(strtok(NULL, ":"));
+//                 break;
+//             case 'f':
+//                 *dir = strtok(optarg, "/");
+//                 *file = strtok(NULL, "/");
+//                 break;
+//             default:
+//                 fprintf(stderr, "Usage: %s -r <recv host>:<recv port> -f <subdir>/<filename>\n", argv[0]);
+//                 exit(EXIT_FAILURE);
+//         }
+//     }
+//     if (*host == NULL || *port == 0 || *dir == NULL || *file == NULL) {
+//         fprintf(stderr, "Missing required arguments.\n");
+//         exit(EXIT_FAILURE);
+//     }
+// }
+
+// Function to parse command line arguments
 void parse_arguments(int argc, char *argv[], char **host, int *port, char **dir, char **file) {
     int opt;
     while ((opt = getopt(argc, argv, "r:f:")) != -1) {
@@ -67,8 +91,21 @@ void parse_arguments(int argc, char *argv[], char **host, int *port, char **dir,
                 *port = atoi(strtok(NULL, ":"));
                 break;
             case 'f':
-                *dir = strtok(optarg, "/");
-                *file = strtok(NULL, "/");
+                {
+                    // Make a copy of the file path because strtok modifies the original string
+                    char *full_path = strdup(optarg); 
+                    char *last_slash = strrchr(full_path, '/');
+                    if (last_slash) {
+                        *last_slash = '\0';  // Split the string at the last '/'
+                        *dir = strdup(full_path);  // Directory is the part before the last '/'
+                        *file = strdup(last_slash + 1);  // File is the part after the last '/'
+                    } else {
+                        // No '/' in the path, so it must be just the file name in the current directory
+                        *dir = strdup(".");  // Current directory
+                        *file = strdup(full_path);  // The file name
+                    }
+                    free(full_path);
+                }
                 break;
             default:
                 fprintf(stderr, "Usage: %s -r <recv host>:<recv port> -f <subdir>/<filename>\n", argv[0]);
@@ -80,6 +117,7 @@ void parse_arguments(int argc, char *argv[], char **host, int *port, char **dir,
         exit(EXIT_FAILURE);
     }
 }
+
 
 // Function to create a UDP socket
 int create_socket(struct sockaddr_in *address, const char *ip, int port) {
