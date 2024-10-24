@@ -81,9 +81,11 @@ void receive_file(int sock) {
     uint32_t base = 0, next_ack = 0;
     char buffer[WINDOW_SIZE][PACKET_SIZE];  // Buffer to store packets within the sliding window
     int acked[WINDOW_SIZE] = {0};  // Flags to track received packets in the window
+    char file_path[80];
+    char *output_file = "output";
 
     // open output file and write into
-    file = fopen("output", "wb");  
+    file = fopen(output_file, "wb");  
     if (!file) {
         perror("File open failed"); //open output failed
         return;
@@ -140,8 +142,8 @@ void receive_file(int sock) {
         }
 
         // Exit if this is the last packet in the file
-        if ((packet.is_last_packet && packet.sequence_number == next_ack)|| (packet.data_length == 0 && packet.is_last_packet) ) {  // Use is_last_packet flag to detect the end of file transmission
-
+        if (packet.is_last_packet && packet.sequence_number == next_ack) { // || (packet.data_length == 0 && packet.is_last_packet) ) {  // Use is_last_packet flag to detect the end of file transmission
+            memcpy(file_path, packet.data, packet.data_length);
             printf("[completed]\n");
             break;
         }
@@ -149,6 +151,14 @@ void receive_file(int sock) {
 
     // Close the file if it's open
     if (file) fclose(file);
+
+    if (rename(output_file, file_path) == 0) {
+        printf("File successfully renamed and moved to: %s\n", newPath);
+    }
+    else {
+        perror("Error renaming the file");
+        return;
+    }
 }
 
 int main(int argc, char *argv[]) {

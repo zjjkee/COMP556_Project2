@@ -201,8 +201,12 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
         if (feof(file) && base >= next_seq_num) {
             struct Packet end_packet;
             end_packet.sequence_number = next_seq_num;
-            end_packet.data_length = 0;
+            end_packet.data_length = strlen(file_path);
             end_packet.is_last_packet = true;
+
+            // Send file details 
+            strncopy(end_packet.data, file_path, strlen(file_name)-1);
+            end_packet.data[strlen(file_name)] = '\0';
 
             sendto(sock, &end_packet, sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
 
