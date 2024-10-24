@@ -25,11 +25,11 @@ This project implements a sliding window transport protocol for reliable file tr
 
     How we determine PACKET_SIZE:
     - For Ethernet networks, the typical MTU is 1500 bytes, which is the standard for many networks.
-    - Our packet defined consist of sequence_number(uint32_t), data_length(uint32_t), checksum(uint32_t), is_last_packet(int) and data(which is PACKET_SIZE)
-    - Thus we have our PACKET_SIZE: 1500 bytes (MTU)− 11 bytes(IP header) − 8 bytes (UDP header) = 1481 bytes (max payload size)
+    - Our packet defined consist of sequence_number(uint32_t), data_length(uint32_t), checksum(uint32_t), is_last_packet(int), filename and directory(char []) and data(which is PACKET_SIZE)
+    - Thus we have our PACKET_SIZE: 1500 bytes (MTU)− 11 bytes(IP header) − 8 bytes (UDP header) - 200 bytes(filename& directory) = 1281 bytes (max payload size)
 
     How we determine WINDOW_SIZE:
-    - After we test the ping from the CLEAR server to look.cs.rice.edu, we have the RTT is 0.287ms(need to be test on CLEAR). Thus we set timeout = 1000us;
+    - After we test the ping from the CLEAR server to look.cs.rice.edu, we have the RTT is 0.287ms(need to be test on CLEAR). Thus we set timeout = 3000us;
     - Based on this, we have BDP = RTT × Bandwidth; We set each packet size is 1481 bytes. Thus the WindowSize = (RTT × Bandwidth)/PACKET_SIZE  is 24.
 
 
@@ -51,7 +51,9 @@ This project implements a sliding window transport protocol for reliable file tr
 - is_last_packet(bool): true if the packet is the last packet of the file
 - checksum(int): to detect data corruption by the receiver
 - data_length(int): the data length of the packet
-- data(char[]): the data of the packet, with maximum 1481 bytes (1500 bytes (MTU)− 11 bytes(IP header) − 8 bytes (UDP header) = 1481 bytes)
+- filename(char []): the buffer for filename,100B
+- directory(char []): the buffer for directory,100B
+- data(char[]): the data of the packet, with maximum 1481 bytes (1500 bytes (MTU)− 11 bytes(IP header) − 8 bytes (UDP header - 200 bytes(filename + directory)) = 1281 bytes)
 
 ### Algorithms
 Sliding Window Protocol（Go-Back-N). Go-Back-N (GBN) is a sliding window protocol used to achieve reliable transmission over unreliable networks, particularly in the context of transport layer protocols like UDP (which itself does not provide reliability). It ensures that packets are delivered in order and without errors, handling packet loss, corruption, and reordering. GBN allows a sender to transmit multiple packets without waiting for an acknowledgment (ACK) for each packet, but with a constraint on the number of unacknowledged packets at any time.

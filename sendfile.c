@@ -7,6 +7,7 @@
 #include <getopt.h>
 #include <sys/time.h>
 #include <time.h>
+#include <errno.h>
 
 #define PACKET_SIZE 1281
 #define FILENAME_SIZE 100

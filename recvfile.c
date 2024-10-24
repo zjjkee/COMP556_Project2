@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <sys/socket.h>
+#include <errno.h>
 
 #define PACKET_SIZE 1281
 #define WINDOW_SIZE 24
@@ -87,11 +88,11 @@ void receive_file(int sock) {
     int acked[WINDOW_SIZE] = {0};  // Flags to track received packets in the window
 
     // open output file and write into
-    file = fopen("output", "wb");  
-    if (!file) {
-        perror("File open failed"); //open output failed
-        return;
-    }
+    // file = fopen("output", "wb");  
+    // if (!file) {
+    //     perror("File open failed"); //open output failed
+    //     return;
+    // }
 
     while (1) {
         ssize_t bytes_received = recvfrom(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&sender_addr, &addr_len);
@@ -104,6 +105,7 @@ void receive_file(int sock) {
             continue;
         }
 
+        char recv_file_path[FILENAME_SIZE + DIRECTORY_SIZE + 10];
         if (file == NULL) {
             // Create the directory if it doesn't exist
             if (mkdir(packet.directory, 0777) && errno != EEXIST) {
