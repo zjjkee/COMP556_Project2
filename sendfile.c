@@ -104,7 +104,7 @@ void send_file(int sock, struct sockaddr_in* receiver_addr, const char* file_pat
     srand(time(NULL));  // initial
 
     struct Packet packets[WINDOW_SIZE];
-    uint32_t base = 0, next_seq_num = 0;
+    uint32_t base = 1, next_seq_num = 1;
     // int acked[WINDOW_SIZE] = {0};  // Marks ACK'd packets
     socklen_t addr_len = sizeof(*receiver_addr);
     fd_set fds;
@@ -116,7 +116,7 @@ void send_file(int sock, struct sockaddr_in* receiver_addr, const char* file_pat
     
     while (1) {
         struct Packet packet0;
-        packet0.sequence_number = -1;
+        packet0.sequence_number = 0;
         packet0.data_length = strlen(file_path);
         strncpy(packet0.data, file_path, strlen(file_path));
         packet0.checksum = crc32(packet0.data, strlen(file_path));
@@ -146,11 +146,12 @@ void send_file(int sock, struct sockaddr_in* receiver_addr, const char* file_pat
             }
             bytes_rcvd += tempRec;
         }
-        if (ack == -1) {
+        if (ack == 0) {
             struct timeval recv_tv;
             gettimeofday(&recv_tv, NULL);
             adapt_timeout = (double)((recv_tv.tv_sec - sent_tv.tv_sec) * 1000 + ((double)(recv_tv.tv_usec - sent_tv.tv_usec)) / 1000);
             adapt_timeout = adapt_timeout * 2;
+	    printf("Set Adaptive timeout: %f\n", adapt_timeout);
             break;
         }
     }
@@ -338,3 +339,4 @@ int main(int argc, char* argv[]) {
     close(sock);
     return 0;
 }
+

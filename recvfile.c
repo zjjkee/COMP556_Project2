@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <sys/socket.h>
+#include <errno.h>
 
 #define PACKET_SIZE 1481
 #define WINDOW_SIZE 24
@@ -79,11 +80,11 @@ void receive_file(int sock) {
     socklen_t addr_len = sizeof(sender_addr);
     struct Packet packet;
     FILE* file = NULL;
-    uint32_t base = 0, next_ack = 0;
+    uint32_t base = 1, next_ack = 1;
     char buffer[WINDOW_SIZE][PACKET_SIZE];  // Buffer to store packets within the sliding window
     int acked[WINDOW_SIZE] = { 0 };  // Flags to track received packets in the window
     size_t sentSizeCount, tempSent, bytes_received, tempRec;
-    char* file_path;
+    char file_path[PACKET_SIZE];
     char* output_file = "output";
 
     // open output file and write into
@@ -114,8 +115,9 @@ void receive_file(int sock) {
             printf("[recv corrupt packet]\n");
             continue;
         }
-
-        if (packet.sequence_number == -1) {
+	printf("Packet seq: %d\n", packet.sequence_number);
+	printf("Packet len: %d\n", packet.data_length);
+        if (packet.sequence_number == 0) {
             memcpy(file_path, packet.data, packet.data_length);
         }
 
@@ -147,7 +149,7 @@ void receive_file(int sock) {
         }
 
         // Send ACK for the next expected packet (base)
-        if (base == 0) {
+        if (base == 1) {
             next_ack = 0;
         }
         else {
@@ -191,8 +193,24 @@ void receive_file(int sock) {
     // Close the file if it's open
     if (file) fclose(file);
 
+    // Assuming that file_path = dirname/filename format
+    char *lastSlash = strrchr(file_path, '/');
+    char dir_name[100];
+    if (lastSlash != NULL) {
+        size_t length = lastSlash - file_path;
+        strncpy(dir_name, file_path, length);
+        dir_name[length] = '\0';
+    } else {
+        strcpy(dir_name, "");
+    }
+    // printf("%s", dir_name);
+    strcat(file_path, ".recv");
+    if (mkdir(dir_name, 0777) && errno != EEXIST) {
+	perror("Error creating the directory");
+	return;
+    }
     if (rename(output_file, file_path) == 0) {
-        printf("File successfully renamed and moved to: %s\n", file_path);
+        printf("File moved to: %s\n", file_path);
     }
     else {
         perror("Error renaming the file");
@@ -218,4 +236,5 @@ int main(int argc, char* argv[]) {
     close(sock);
     return 0;
 }
+
 
