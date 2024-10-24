@@ -126,12 +126,8 @@ void receive_file(int sock) {
         }
 
         // Send ACK for the next expected packet (base)
-        if (base == 0){
-            next_ack = 0;
-        }
-        else{
-            next_ack = base - 1;
-        }
+        next_ack = base - 1;
+        
         
         // printf("base:%d, sent ACK:%d,  \n",base, next_ack);
         sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
