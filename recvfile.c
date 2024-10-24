@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -20,7 +21,7 @@ struct Packet {
 };
 
 // Function to calculate CRC32 checksum
-uint32_t crc32(const char *data, size_t length) {
+uint32_t crc32(const char* data, size_t length) {
     uint32_t crc = 0xFFFFFFFF;
     for (size_t i = 0; i < length; ++i) {
         crc ^= (unsigned char)data[i];
@@ -32,28 +33,28 @@ uint32_t crc32(const char *data, size_t length) {
 }
 
 // Function to print information when receiving a packet
-void print_recv_message(uint32_t start, int length, const char *status) {
+void print_recv_message(uint32_t start, int length, const char* status) {
     printf("[recv data] %u (%d) %s\n", start, length, status);
 }
 
 
 // Function to parse command line arguments
-void parse_arguments(int argc, char *argv[], int *port) {
+void parse_arguments(int argc, char* argv[], int* port) {
     int opt;
     while ((opt = getopt(argc, argv, "p:")) != -1) {
         switch (opt) {
-            case 'p':
-                *port = atoi(optarg);
-                break;
-            default:
-                fprintf(stderr, "Usage: %s -p <recv port>\n", argv[0]);
-                exit(EXIT_FAILURE);
+        case 'p':
+            *port = atoi(optarg);
+            break;
+        default:
+            fprintf(stderr, "Usage: %s -p <recv port>\n", argv[0]);
+            exit(EXIT_FAILURE);
         }
     }
 }
 
 // Function to create a UDP socket and bind it to a specific port
-int create_socket(struct sockaddr_in *address, int port) {
+int create_socket(struct sockaddr_in* address, int port) {
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         perror("Socket creation failed");
@@ -64,7 +65,7 @@ int create_socket(struct sockaddr_in *address, int port) {
     address->sin_port = htons(port);
     address->sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(sock, (struct sockaddr *)address, sizeof(*address)) < 0) {
+    if (bind(sock, (struct sockaddr*)address, sizeof(*address)) < 0) {
         perror("Socket bind failed");
         return -1;
     }
@@ -77,32 +78,68 @@ void receive_file(int sock) {
     struct sockaddr_in sender_addr;
     socklen_t addr_len = sizeof(sender_addr);
     struct Packet packet;
-    FILE *file = NULL;
+    FILE* file = NULL;
     uint32_t base = 0, next_ack = 0;
     char buffer[WINDOW_SIZE][PACKET_SIZE];  // Buffer to store packets within the sliding window
-    int acked[WINDOW_SIZE] = {0};  // Flags to track received packets in the window
-    char file_path[80];
-    char *output_file = "output";
+    int acked[WINDOW_SIZE] = { 0 };  // Flags to track received packets in the window
+    size_t sentSizeCount, tempSent, bytes_received, tempRec;
+    char* file_path;
+    char* output_file = "output";
 
     // open output file and write into
-    file = fopen(output_file, "wb");  
+    file = fopen(output_file, "wb");
     if (!file) {
         perror("File open failed"); //open output failed
         return;
     }
 
+    // Receive first packet for file name info
+    /*
     while (1) {
-        int bytes_received = 0;
-        int tempRec = 0;
-
+        bytes_received = 0;
+        tempRec = 0;
         while (bytes_received != sizeof(packet)) {
-            tempRec = recvfrom(sock, &packet + bytes_received, sizeof(packet) - bytes_received, 0, (struct sockaddr*)sender_addr, &addr_len);
+            tempRec = recvfrom(sock, &packet + bytes_received, sizeof(packet) - bytes_received, 0, (struct sockaddr*)&sender_addr, &addr_len);
             if (tempRec <= 0) {
                 continue;
             }
             bytes_received += tempRec;
         }
-        // ssize_t bytes_received = recvfrom(sock, &packet, sizeof(packet), 0, (struct sockaddr *)&sender_addr, &addr_len);
+
+        uint32_t calculated_checksum = crc32(packet.data, packet.data_length);
+        if (calculated_checksum != packet.checksum) {
+            printf("[recv corrupt packet]\n");
+            continue;
+        }
+        memcpy(file_path, packet.data, packet.data_length);
+        uint32_t ack = -1;
+        sentSizeCount = 0;
+        tempSent = 0;
+
+        while (sentSizeCount != sizeof(ack)) {
+            tempSent = sendto(sock, &ack + sentSizeCount, sizeof(ack) - sentSizeCount, 0, (struct sockaddr*)&sender_addr, addr_len);
+            if (tempSent <= 0) {
+                continue;
+            }
+            sentSizeCount += tempSent;
+        }
+        break;
+    }
+    */
+
+    // Receive data packets
+    while (1) {
+        bytes_received = 0;
+        tempRec = 0;
+
+        while (bytes_received != sizeof(packet)) {
+            tempRec = recvfrom(sock, &packet + bytes_received, sizeof(packet) - bytes_received, 0, (struct sockaddr*)&sender_addr, &addr_len);
+            if (tempRec <= 0) {
+                continue;
+            }
+            bytes_received += tempRec;
+        }
+        // ssize_t bytes_received = recvfrom(sock, &packet, sizeof(packet), 0, (struct sockaddr*)&sender_addr, &addr_len);
         if (bytes_received <= 0) break;
 
         // Validate the checksum
@@ -119,10 +156,11 @@ void receive_file(int sock) {
             acked[packet.sequence_number % WINDOW_SIZE] = 1;  // Mark the packet as received
 
             // Check if this is an out-of-order packet
-            if (packet.sequence_number > base) {   
+            if (packet.sequence_number > base) {
                 // Out-of-order arrival, cache the packet but do not process yet
                 print_recv_message(packet.sequence_number * PACKET_SIZE, packet.data_length, "ACCEPTED(out-of-order)");
-            } else if (packet.sequence_number == base) {
+            }
+            else if (packet.sequence_number == base) {
                 // Correct, in-order packet; slide the window and process packets in sequence
                 while (acked[base % WINDOW_SIZE]) {
 
@@ -132,40 +170,49 @@ void receive_file(int sock) {
                     base++;  // Slide the window
                 }
             }
-        } else {
+        }
+        else {
             // If the packet is outside the window range, ignore it
             print_recv_message(packet.sequence_number * PACKET_SIZE, packet.data_length, "IGNORED");
         }
 
         // Send ACK for the next expected packet (base)
-        if (base == 0){
+        if (base == 0) {
             next_ack = 0;
         }
-        else{
+        else {
             next_ack = base - 1;
         }
-        
+
         // printf("base:%d, sent ACK:%d,  \n",base, next_ack);
-        int sentSizeCount = 0;
-        int tempSent = 0;
+        sentSizeCount = 0;
+        tempSent = 0;
 
         while (sentSizeCount != sizeof(next_ack)) {
-            tempSent = sendto(sock, &next_ack + sentSizeCount, sizeof(next_ack) - sentSizeCount, 0, (struct sockaddr*)sender_addr, addr_len);
+            tempSent = sendto(sock, &next_ack + sentSizeCount, sizeof(next_ack) - sentSizeCount, 0, (struct sockaddr*)&sender_addr, addr_len);
             if (tempSent <= 0) {
                 continue;
             }
             sentSizeCount += tempSent;
         }
+        // sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr*)&sender_addr, addr_len);
+        if (packet.sequence_number <= next_ack) {
+            sentSizeCount = 0;
+            tempSent = 0;
 
-        //sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
-        // Sending ack again?
-        // if (packet.sequence_number <= next_ack){
-        //    sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr *)&sender_addr, addr_len);
-        //}
+            while (sentSizeCount != sizeof(next_ack)) {
+                tempSent = sendto(sock, &next_ack + sentSizeCount, sizeof(next_ack) - sentSizeCount, 0, (struct sockaddr*)&sender_addr, addr_len);
+                if (tempSent <= 0) {
+                    continue;
+                }
+                sentSizeCount += tempSent;
+            }
+            // sendto(sock, &next_ack, sizeof(next_ack), 0, (struct sockaddr*)&sender_addr, addr_len);
+        }
 
         // Exit if this is the last packet in the file
-        if (packet.is_last_packet && packet.sequence_number == next_ack) { // || (packet.data_length == 0 && packet.is_last_packet) ) {  // Use is_last_packet flag to detect the end of file transmission
-            memcpy(file_path, packet.data, packet.data_length);
+        if ((packet.is_last_packet && packet.sequence_number == next_ack) || (packet.data_length == 0 && packet.is_last_packet)) {  // Use is_last_packet flag to detect the end of file transmission
+
             printf("[completed]\n");
             break;
         }
@@ -175,7 +222,7 @@ void receive_file(int sock) {
     if (file) fclose(file);
 
     if (rename(output_file, file_path) == 0) {
-        printf("File successfully renamed and moved to: %s\n", newPath);
+        printf("File successfully renamed and moved to: %s\n", file_path);
     }
     else {
         perror("Error renaming the file");
@@ -183,7 +230,7 @@ void receive_file(int sock) {
     }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     int port;
 
     // Parse command line arguments to get the receiving port
@@ -201,3 +248,4 @@ int main(int argc, char *argv[]) {
     close(sock);
     return 0;
 }
+

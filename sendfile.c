@@ -29,13 +29,13 @@ struct Packet {
 double get_current_time() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return tv.tv_sec*1000000.0 + tv.tv_usec;
+    return tv.tv_sec * 1000000.0 + tv.tv_usec;
 }
 
 
 
 // Function to calculate CRC32 checksum
-uint32_t crc32(const char *data, size_t length) {
+uint32_t crc32(const char* data, size_t length) {
     uint32_t crc = 0xFFFFFFFF;
     for (size_t i = 0; i < length; ++i) {
         crc ^= (unsigned char)data[i];
@@ -52,21 +52,21 @@ void print_send_message(uint32_t start, int length) {
 }
 
 // Function to parse command line arguments
-void parse_arguments(int argc, char *argv[], char **host, int *port, char **dir, char **file) {
+void parse_arguments(int argc, char* argv[], char** host, int* port, char** dir, char** file) {
     int opt;
     while ((opt = getopt(argc, argv, "r:f:")) != -1) {
         switch (opt) {
-            case 'r':
-                *host = strtok(optarg, ":");
-                *port = atoi(strtok(NULL, ":"));
-                break;
-            case 'f':
-                *dir = strtok(optarg, "/");
-                *file = strtok(NULL, "/");
-                break;
-            default:
-                fprintf(stderr, "Usage: %s -r <recv host>:<recv port> -f <subdir>/<filename>\n", argv[0]);
-                exit(EXIT_FAILURE);
+        case 'r':
+            *host = strtok(optarg, ":");
+            *port = atoi(strtok(NULL, ":"));
+            break;
+        case 'f':
+            *dir = strtok(optarg, "/");
+            *file = strtok(NULL, "/");
+            break;
+        default:
+            fprintf(stderr, "Usage: %s -r <recv host>:<recv port> -f <subdir>/<filename>\n", argv[0]);
+            exit(EXIT_FAILURE);
         }
     }
     if (*host == NULL || *port == 0 || *dir == NULL || *file == NULL) {
@@ -76,7 +76,7 @@ void parse_arguments(int argc, char *argv[], char **host, int *port, char **dir,
 }
 
 // Function to create a UDP socket
-int create_socket(struct sockaddr_in *address, const char *ip, int port) {
+int create_socket(struct sockaddr_in* address, const char* ip, int port) {
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         perror("Socket creation failed");
@@ -89,8 +89,8 @@ int create_socket(struct sockaddr_in *address, const char *ip, int port) {
 }
 
 // Function to send a file using the sliding window protocol
-void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_path) {
-    FILE *file = fopen(file_path, "rb");
+void send_file(int sock, struct sockaddr_in* receiver_addr, const char* file_path) {
+    FILE* file = fopen(file_path, "rb");
     if (!file) {
         perror("File open failed");
         return;
@@ -109,7 +109,54 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
     socklen_t addr_len = sizeof(*receiver_addr);
     fd_set fds;
     double send_times[WINDOW_SIZE];
+    size_t sentSizeCount, tempSent, bytes_rcvd, tempRec;
+    struct timeval timeout;
 
+    // First packet for file name info
+    /*
+    while (1) {
+        struct Packet packet0;
+        packet0.sequence_number = -1;
+        packet0.data_length = strlen(file_path);
+        strncpy(packet0.data, file_path, strlen(file_path));
+        packet0.checksum = crc32(packet0.data, strlen(file_path));
+        packet0.is_last_packet = false;
+
+        sentSizeCount = 0;
+        tempSent = 0;
+
+        struct timeval sent_tv;
+        gettimeofday(&sent_tv, NULL);
+
+        while (sentSizeCount != sizeof(struct Packet)) {
+            tempSent = sendto(sock, &packet0 + sentSizeCount, sizeof(struct Packet) - sentSizeCount, 0, (struct sockaddr*)receiver_addr, addr_len);
+            if (tempSent <= 0) {
+                continue;
+            }
+            sentSizeCount += tempSent;
+        }
+
+        uint32_t ack;
+        bytes_rcvd = 0;
+        tempRec = 0;
+        while (bytes_rcvd != sizeof(ack)) {
+            tempRec = recvfrom(sock, &ack + bytes_rcvd, sizeof(ack) - bytes_rcvd, 0, (struct sockaddr*)receiver_addr, &addr_len);
+            if (tempRec <= 0) {
+                continue;
+            }
+            bytes_rcvd += tempRec;
+        }
+        if (ack == -1) {
+            struct timeval recv_tv;
+            gettimeofday(&recv_tv, NULL);
+            timeout.tv_usec = recv_tv.tv_usec - sent_tv.tv_usec;
+            timeout.tv_sec = recv_tv.tv_sec - sent_tv.tv_sec;
+            break;
+        }
+    }
+    */
+
+    // Sending actual data packets
     while (1) {
         // Continue sending packets as long as there is space in the window
         while (next_seq_num < base + WINDOW_SIZE) {
@@ -121,7 +168,8 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             if (read_bytes < PACKET_SIZE) {
                 // If fewer than PACKET_SIZE bytes are read, this is the last packet
                 packets[next_seq_num % WINDOW_SIZE].is_last_packet = true;  // 1 indicates the last packet
-            } else {
+            }
+            else {
                 packets[next_seq_num % WINDOW_SIZE].is_last_packet = false;  // 0 indicates a regular packet
             }
 
@@ -140,8 +188,8 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             // }
 
             // Send the packet to the receiver
-            int sentSizeCount = 0;
-            int tempSent = 0;
+            sentSizeCount = 0;
+            tempSent = 0;
 
             while (sentSizeCount != sizeof(struct Packet)) {
                 tempSent = sendto(sock, &packets[next_seq_num % WINDOW_SIZE] + sentSizeCount, sizeof(struct Packet) - sentSizeCount, 0, (struct sockaddr*)receiver_addr, addr_len);
@@ -150,11 +198,11 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                 }
                 sentSizeCount += tempSent;
             }
-            // sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+            // sendto(sock, &packets[next_seq_num % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr*)receiver_addr, addr_len);
             next_seq_num++;
             print_send_message(next_seq_num * PACKET_SIZE, read_bytes);
             send_times[next_seq_num % WINDOW_SIZE] = get_current_time(); // 记录发送时间 // record sending time
-            
+
             printf("next_seq_num: %d; base: %d; WINDOW_SIZE: %d \n", next_seq_num, base, WINDOW_SIZE);
         }
         // printf("Waiting for ACK...\n");
@@ -162,7 +210,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
         while (1)
         {
             // Wait for ACK
-            struct timeval timeout;
+            // struct timeval timeout;
             timeout.tv_sec = TIMEOUT_S;
             timeout.tv_usec = TIMEOUT_U;
             FD_ZERO(&fds);
@@ -172,8 +220,8 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
             // printf(" activity: %d \n", activity);
             if (activity > 0) {
                 uint32_t ack;
-                int bytes_rcvd = 0;
-                int tempRec = 0;
+                bytes_rcvd = 0;
+                tempRec = 0;
 
                 while (bytes_rcvd != sizeof(ack)) {
                     tempRec = recvfrom(sock, &ack + bytes_rcvd, sizeof(ack) - bytes_rcvd, 0, (struct sockaddr*)receiver_addr, &addr_len);
@@ -182,15 +230,15 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                     }
                     bytes_rcvd += tempRec;
                 }
-                // int bytes_rcvd = recvfrom(sock, &ack, sizeof(ack), 0, (struct sockaddr *)receiver_addr, &addr_len);
+                // int bytes_rcvd = recvfrom(sock, &ack, sizeof(ack), 0, (struct sockaddr*)receiver_addr, &addr_len);
                 // printf("ack:%d, base:%d;\t",ack,base );
                 if (bytes_rcvd > 0 && ack >= base) {
                     // Slide the window
                     base = ack + 1;
                     // printf(" ACK RECEIVED!!!!!\n");
                     if (base == next_seq_num) {
-                    // All packets in the current window are acknowledged
-                    break;
+                        // All packets in the current window are acknowledged
+                        break;
                     }
                 }
 
@@ -202,10 +250,10 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                 // printf("activity <=0, base: %d, next_seq_num: %d\n",base,next_seq_num);
                 double current_time = get_current_time();
                 for (uint32_t i = base; i < next_seq_num; i++) {
-                        if (current_time - send_times[i % WINDOW_SIZE] >= TIMEOUT_U) {
+                    if (current_time - send_times[i % WINDOW_SIZE] >= TIMEOUT_U) {
                         printf("Retransmitting on timeout\n");
-                        int sentSizeCount = 0;
-                        int tempSent = 0;
+                        sentSizeCount = 0;
+                        tempSent = 0;
 
                         while (sentSizeCount != sizeof(struct Packet)) {
                             tempSent = sendto(sock, &packets[i % WINDOW_SIZE] + sentSizeCount, sizeof(struct Packet) - sentSizeCount, 0, (struct sockaddr*)receiver_addr, addr_len);
@@ -214,11 +262,11 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                             }
                             sentSizeCount += tempSent;
                         }
-                        //sendto(sock, &packets[i % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+                        // sendto(sock, &packets[i % WINDOW_SIZE], sizeof(struct Packet), 0, (struct sockaddr*)receiver_addr, addr_len);
                         print_send_message(i * PACKET_SIZE, packets[i % WINDOW_SIZE].data_length);
                         // update retransmit time
                         send_times[i % WINDOW_SIZE] = current_time;
-                        }
+                    }
                 }
                 // usleep(50000); // waiting recvfile to receieve and sent back ack;
                 break;  // continue wait ACK after retransmitting
@@ -231,15 +279,11 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
         if (feof(file) && base >= next_seq_num) {
             struct Packet end_packet;
             end_packet.sequence_number = next_seq_num;
-            end_packet.data_length = strlen(file_path);
+            end_packet.data_length = 0;
             end_packet.is_last_packet = true;
 
-            // Send file details 
-            strncopy(end_packet.data, file_path, strlen(file_name)-1);
-            end_packet.data[strlen(file_name)] = '\0';
-
-            int sentSizeCount = 0;
-            int tempSent = 0;
+            sentSizeCount = 0;
+            tempSent = 0;
 
             while (sentSizeCount != sizeof(struct Packet)) {
                 tempSent = sendto(sock, &end_packet + sentSizeCount, sizeof(struct Packet) - sentSizeCount, 0, (struct sockaddr*)receiver_addr, addr_len);
@@ -248,7 +292,7 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
                 }
                 sentSizeCount += tempSent;
             }
-            //sendto(sock, &end_packet, sizeof(struct Packet), 0, (struct sockaddr *)receiver_addr, addr_len);
+            // sendto(sock, &end_packet, sizeof(struct Packet), 0, (struct sockaddr*)receiver_addr, addr_len);
 
             printf("Exit after completing transmission\n");
             break;
@@ -259,8 +303,8 @@ void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_pat
     fclose(file);
 }
 
-int main(int argc, char *argv[]) {
-    char *host = NULL, *dir = NULL, *file = NULL;
+int main(int argc, char* argv[]) {
+    char* host = NULL, * dir = NULL, * file = NULL;
     int port;
 
     // Parse command line arguments to get the receiver host, port, subdirectory, and filename
