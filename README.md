@@ -6,6 +6,12 @@
 2. **Tzuhan Su(S01469920)**
 3. **Jingke Zou(S01505152)**
 
+## Files Included
+
+- `sendfile.c`: The sender program that reads a file and transmits it using a sliding window protocol.
+- `recvfile.c`: The receiver program that listens for incoming packets, verifies the data, and writes it to a local file named `output`.
+- `Makefile`: A makefile to compile both `sendfile.c` and `recvfile.c`.
+
 ## Project Overview
 
 This project implements a sliding window transport protocol for reliable file transfer over an unreliable network. The protocol is designed to handle potential network issues such as packet delay, loss, reordering, duplication, and corruption. The project includes two components:
@@ -34,18 +40,37 @@ This project implements a sliding window transport protocol for reliable file tr
     - Duplicate Packet Handling: Ignores duplicate packets that have already been processed and acknowledged.
     - File Writing: Writes the received data to a file while maintaining the correct order and structure.
 
-## Features
+## Design
+### Protocol
 
-- **Packet Handling**: Each packet has a sequence number, data payload, checksum (CRC32), and a flag indicating whether it is the last packet.
-- **Checksum Verification**: On the receiver side, each packet's integrity is checked using CRC32. Corrupted packets are discarded.
-- **Timeout and Retransmission**: If an acknowledgment (ACK) is not received within a specified timeout, the sender will retransmit the unacknowledged packets.
-- **Sliding Window Protocol**: Allows for multiple packets to be sent before waiting for ACKs, increasing the efficiency of the transmission.
+- UDP Protocol: The User Datagram Protocol (UDP) is used to support unreliable network simulation.
+- Sliding Window Protocol: The Sliding Window Protocol is used to ensure reliable packet transmission, maximize network's bandwidth utilization, and avoid network congestion.
 
-## Files Included
+### Packet Format
+- sequence_number(int): the sequence number of the packet
+- is_last_packet(bool): true if the packet is the last packet of the file
+- checksum(int): to detect data corruption by the receiver
+- data_length(int): the data length of the packet
+- data(char[]): the data of the packet, with maximum 1481 bytes (1500 bytes (MTU)− 11 bytes(IP header) − 8 bytes (UDP header) = 1481 bytes)
 
-- `sendfile.c`: The sender program that reads a file and transmits it using a sliding window protocol.
-- `recvfile.c`: The receiver program that listens for incoming packets, verifies the data, and writes it to a local file named `output`.
-- `Makefile`: A makefile to compile both `sendfile.c` and `recvfile.c`.
+### Algorithms
+- Sliding Window Method
+
+### Features
+- **Minimized Packet Size Through Packet Format Design**:  
+In this design, we optimize packet size by only including essential datagram fields. Each packet is limited to a maximum data size of 1481 bytes, so files are often split across multiple packets. To ensure the receiver can identify the last packet and reassemble the file, we use a boolean field called `is_last_packet`. This simplifies the packet structure and reduces overhead.
+
+  Other necessary fields include:
+  - `sequence_number`: For ensuring reliable transmission and correct packet ordering.
+  - `checksum`: To detect data corruption during transmission.
+  - `data_length`: To manage any discrepancies in data size between the last packet and other packets, particularly when the last packet is smaller.
+
+- **Reliable Transmission – Handling Corrupted Packets with Checksum**: On the receiver side, packet integrity is verified using `CRC32`. If a packet is found to be corrupted, it is immediately discarded to ensure reliable data transmission.
+- **Reliable Transmission – Handling Lost or Delayed Packets/Acknowledgments with Timeout and Retransmission**: If an acknowledgment (ACK) is not received within a specified timeout period, the sender will retransmit the unacknowledged packets to ensure reliable delivery. This mechanism also handles cases of delayed packets or ACKs.
+- **Reliable Transmission – Handling Duplicated and Reordered Packets with Sequence Numbers**: The receiver uses sequence numbers to detect duplicate packets, as packets with the same sequence number are considered duplicates. Additionally, sequence numbers enable the receiver to correctly reassemble packets in the correct order, even if they arrive out of sequence.
+- **Maximized Network's Bandwidth Utilization by the Sliding Window Protocol**: Unlike the Stop-and-Wait protocol, which pauses to wait for an acknowledgment (ACK) before sending the next packet, we implemented the sliding window protocol. This allows the sender to transmit up to `WINDOW_SIZE` packets before needing to receive any ACKs, significantly improving bandwidth utilization and overall network efficiency.
+
+- **Network Congestion Prevention by the Sliding Window Protocol**: The sliding window protocol helps prevent network congestion by limiting the number of packets the sender can transmit at one time. The controlled window size ensures that the sender does not overwhelm the network by sending an unlimited number of packets, promoting efficient data flow and avoiding congestion.
 
 ## Usage
 
