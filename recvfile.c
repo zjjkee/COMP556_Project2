@@ -7,8 +7,10 @@
 #include <getopt.h>
 #include <sys/socket.h>
 
-#define PACKET_SIZE 1481
+#define PACKET_SIZE 1281
 #define WINDOW_SIZE 24
+#define FILENAME_SIZE 100
+#define DIRECTORY_SIZE 100
 
 // Structure representing a packet
 struct Packet {
@@ -17,6 +19,8 @@ struct Packet {
     char data[PACKET_SIZE];
     uint32_t checksum;
     bool is_last_packet;  // Flag to indicate if this is the last packet
+    char filename[FILENAME_SIZE];  // Filename being sent
+    char directory[DIRECTORY_SIZE]; // Directory path being sent
 };
 
 // Function to calculate CRC32 checksum
@@ -98,6 +102,24 @@ void receive_file(int sock) {
         if (calculated_checksum != packet.checksum) {
             printf("[recv corrupt packet]\n");
             continue;
+        }
+
+        if (file == NULL) {
+            // Create the directory if it doesn't exist
+            if (mkdir(packet.directory, 0777) && errno != EEXIST) {
+                perror("mkdir failed");
+                return;
+            }
+
+            // Create the full file path with .recv suffix
+            snprintf(recv_file_path, sizeof(recv_file_path), "%s/%s.recv", packet.directory, packet.filename);
+
+            // Open the file for writing
+            file = fopen(recv_file_path, "wb");
+            if (!file) {
+                perror("File open failed");
+                return;
+            }
         }
 
         // Check if the packet's sequence number is within the current window range
