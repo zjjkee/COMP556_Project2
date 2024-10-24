@@ -55,16 +55,16 @@ This project implements a sliding window transport protocol for reliable file tr
 
 ### Algorithms
 Sliding Window Protocol（Go-Back-N). Go-Back-N (GBN) is a sliding window protocol used to achieve reliable transmission over unreliable networks, particularly in the context of transport layer protocols like UDP (which itself does not provide reliability). It ensures that packets are delivered in order and without errors, handling packet loss, corruption, and reordering. GBN allows a sender to transmit multiple packets without waiting for an acknowledgment (ACK) for each packet, but with a constraint on the number of unacknowledged packets at any time.
-- Sender Operations:
-        - Initialization: The sender starts with an empty send window, which can hold up to 1481 packets (window size).
-        - Sending Packets: The sender can send packets up to the window size N. Each packet is assigned a sequence number. After sending each packet, the sender starts a timer for the oldest unacknowledged packet .
-        - Acknowledgment Handling: The sender continues sending packets until it reaches the limit of the window size or runs out of data.If the sender receives an acknowledgment ACK(k), it moves the window forward so that it can send new packets. The window slides to k+1, meaning all packets up to  k are now acknowledged and out of the window.
-        - Timeout and Retransmission: If the timer for the oldest unacknowledged packet expires, the sender retransmits all packets in the window starting from the oldest one.
+- **Sender Operations**:
+  - **Initialization**: The sender starts with an empty send window, which can hold up to 1481 packets (window size).
+  - **Sending Packets**: The sender can send packets up to the window size N. Each packet is assigned a sequence number. After sending each packet, the sender starts a timer for the oldest unacknowledged packet .
+  - **Acknowledgment Handling**: The sender continues sending packets until it reaches the limit of the window size or runs out of data.If the sender receives an acknowledgment ACK(k), it moves the window forward so that it can send new packets. The window slides to k+1, meaning all packets up to  k are now acknowledged and out of the window.
+  - **Timeout and Retransmission**: If the timer for the oldest unacknowledged packet expires, the sender retransmits all packets in the window starting from the oldest one.
 The timer is then restarted.
-- Receiver Operations:
-        - Receiving Packets: The receiver expects packets in a strict sequential order. If it receives the expected packet (matching the expected sequence number), it processes the packet and sends an acknowledgment for it.
-        - Handling Out-of-Order Packets: If the receiver receives a packet that is out-of-order (i.e., not the next expected packet), it discards the packet and retransmits an acknowledgment for the last correctly received packet
-        - Sending Acknowledgments: The receiver sends cumulative ACKs. If the receiver expects packet k and receives it correctly, it sends an acknowledgment ACK(k), confirming that it has successfully received all packets up to and including k.
+- **Receiver Operations**:
+  - **Receiving Packets**: The receiver expects packets in a strict sequential order. If it receives the expected packet (matching the expected sequence number), it processes the packet and sends an acknowledgment for it.
+  - **Handling Out-of-Order Packets**: If the receiver receives a packet that is out-of-order (i.e., not the next expected packet), it discards the packet and retransmits an acknowledgment for the last correctly received packet
+  - **Sending Acknowledgments**: The receiver sends cumulative ACKs. If the receiver expects packet k and receives it correctly, it sends an acknowledgment ACK(k), confirming that it has successfully received all packets up to and including k.
 
 ### Features
 - **Minimized Packet Size Through Packet Format Design**:  
