@@ -94,7 +94,7 @@ int create_socket(struct sockaddr_in *address, const char *ip, int port) {
 }
 
 // Function to send a file using the sliding window protocol
-void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_path, const char *dir, const char *file) {
+void send_file(int sock, struct sockaddr_in *receiver_addr, const char *file_path, const char *dir, const char *filename) {
     FILE *file = fopen(file_path, "rb");
     if (!file) {
         perror("File open failed");
