@@ -93,40 +93,6 @@ void receive_file(int sock) {
         return;
     }
 
-    // Receive first packet for file name info
-    /*
-    while (1) {
-        bytes_received = 0;
-        tempRec = 0;
-        while (bytes_received != sizeof(packet)) {
-            tempRec = recvfrom(sock, &packet + bytes_received, sizeof(packet) - bytes_received, 0, (struct sockaddr*)&sender_addr, &addr_len);
-            if (tempRec <= 0) {
-                continue;
-            }
-            bytes_received += tempRec;
-        }
-
-        uint32_t calculated_checksum = crc32(packet.data, packet.data_length);
-        if (calculated_checksum != packet.checksum) {
-            printf("[recv corrupt packet]\n");
-            continue;
-        }
-        memcpy(file_path, packet.data, packet.data_length);
-        uint32_t ack = -1;
-        sentSizeCount = 0;
-        tempSent = 0;
-
-        while (sentSizeCount != sizeof(ack)) {
-            tempSent = sendto(sock, &ack + sentSizeCount, sizeof(ack) - sentSizeCount, 0, (struct sockaddr*)&sender_addr, addr_len);
-            if (tempSent <= 0) {
-                continue;
-            }
-            sentSizeCount += tempSent;
-        }
-        break;
-    }
-    */
-
     // Receive data packets
     while (1) {
         bytes_received = 0;
@@ -149,8 +115,12 @@ void receive_file(int sock) {
             continue;
         }
 
+        if (packet.sequence_number == -1) {
+            memcpy(file_path, packet.data, packet.data_length);
+        }
+
         // Check if the packet's sequence number is within the current window range
-        if (packet.sequence_number >= base && packet.sequence_number < base + WINDOW_SIZE) {
+        else if (packet.sequence_number >= base && packet.sequence_number < base + WINDOW_SIZE) {
             // Store the received data in the sliding window buffer
             memcpy(buffer[packet.sequence_number % WINDOW_SIZE], packet.data, packet.data_length);
             acked[packet.sequence_number % WINDOW_SIZE] = 1;  // Mark the packet as received

@@ -110,10 +110,10 @@ void send_file(int sock, struct sockaddr_in* receiver_addr, const char* file_pat
     fd_set fds;
     double send_times[WINDOW_SIZE];
     size_t sentSizeCount, tempSent, bytes_rcvd, tempRec;
-    struct timeval timeout;
+    double adapt_timeout;
 
     // First packet for file name info
-    /*
+    
     while (1) {
         struct Packet packet0;
         packet0.sequence_number = -1;
@@ -149,12 +149,11 @@ void send_file(int sock, struct sockaddr_in* receiver_addr, const char* file_pat
         if (ack == -1) {
             struct timeval recv_tv;
             gettimeofday(&recv_tv, NULL);
-            timeout.tv_usec = recv_tv.tv_usec - sent_tv.tv_usec;
-            timeout.tv_sec = recv_tv.tv_sec - sent_tv.tv_sec;
+            adapt_timeout = (double)((recv_tv.tv_sec - sent_tv.tv_sec) * 1000 + ((double)(recv_tv.tv_usec - sent_tv.tv_usec)) / 1000);
+            adapt_timeout = adapt_timeout * 2;
             break;
         }
     }
-    */
 
     // Sending actual data packets
     while (1) {
@@ -210,7 +209,7 @@ void send_file(int sock, struct sockaddr_in* receiver_addr, const char* file_pat
         while (1)
         {
             // Wait for ACK
-            // struct timeval timeout;
+            struct timeval timeout;
             timeout.tv_sec = TIMEOUT_S;
             timeout.tv_usec = TIMEOUT_U;
             FD_ZERO(&fds);
@@ -250,7 +249,7 @@ void send_file(int sock, struct sockaddr_in* receiver_addr, const char* file_pat
                 // printf("activity <=0, base: %d, next_seq_num: %d\n",base,next_seq_num);
                 double current_time = get_current_time();
                 for (uint32_t i = base; i < next_seq_num; i++) {
-                    if (current_time - send_times[i % WINDOW_SIZE] >= TIMEOUT_U) {
+                    if (current_time - send_times[i % WINDOW_SIZE] >= adapt_timeout) { //TIMEOUT_U) {
                         printf("Retransmitting on timeout\n");
                         sentSizeCount = 0;
                         tempSent = 0;
